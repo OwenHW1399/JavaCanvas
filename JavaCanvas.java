@@ -10,7 +10,6 @@ import java.awt.geom.*;
 //import java.text.DecimalFormat;
 import java.util.*;
 
-@SuppressWarnings("serial") /* optional */
 
 //get thickness slider and clear button done
 
