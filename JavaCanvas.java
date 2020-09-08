@@ -1,0 +1,423 @@
+package helloworld;// the package name this class is under
+
+import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+import java.awt.event.*;
+import java.awt.*;
+import java.awt.geom.*;
+//import java.text.DecimalFormat;
+import java.util.*;
+
+@SuppressWarnings("serial") /* optional */
+
+//get thickness slider and clear button done
+
+public class JavaCanvas extends JFrame {
+
+	Graphics2D graphSettings;
+
+	int choiceOfDrawing = 1;
+	float transparency = 1.0f;
+	// https://stackoverflow.com/questions/16369726/declaring-floats-why-default-type-double
+	// must declare float otherwise will generate error
+	float strokeThicknessVal = 4;
+	Color strokeColor = Color.BLACK;
+	Color fillColor = Color.BLACK;
+
+	JButton brushBut, lineBut, ellipseBut, rectBut, strokeBut, fillBut;
+	JSlider strokeSlider;
+	JLabel strokeLabel;
+	JSlider transSlider;
+	JLabel transLabel;
+
+	public static void main(String[] args) {
+		new JavaCanvas();
+	}
+
+	public JavaCanvas() {
+		// Define the defaults for the JFrame
+
+		this.setSize(800, 800);
+		this.setTitle("Canvas");
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		JPanel buttonPanel = new JPanel();
+		JPanel buttonPanel2 = new JPanel();
+
+		Box theBox = Box.createHorizontalBox();
+		Box theBox2 = Box.createHorizontalBox();
+
+		brushBut = createShapeButtons("./src/brush (2).png", 1);
+		// the first variable is the source for Icon for different buttons
+		// and second one is choiceOfDrawing denoting the different choice 1-use brush;
+		// 2-draw line; 3-draw ellipse 4-draw rectangle
+		lineBut = createShapeButtons("./src/straight.png", 2);
+		ellipseBut = createShapeButtons("./src/oval.png", 3);
+		rectBut = createShapeButtons("./src/rectangle.png", 4);
+
+		// button icon and true for stroke color or false for fill
+		strokeBut = makeMeColorButton("./src/paint-brush.png", 5, true);
+		fillBut = makeMeColorButton("./src/paint.png", 6, false);
+
+		theBox.add(brushBut);
+		theBox.add(lineBut);
+		theBox.add(ellipseBut);
+		theBox.add(rectBut);
+		theBox.add(strokeBut);
+		theBox.add(fillBut);
+
+		// create two sliders
+		transLabel = new JLabel("Transparent: 99%");
+		transSlider = new JSlider(1, 99, 99);
+
+		strokeLabel = new JLabel("Stroke Thickness: 1%");
+		strokeSlider = new JSlider(1, 99, 1);
+
+		ListenForSlider sliderListener = new ListenForSlider();
+		transSlider.addChangeListener(sliderListener);
+		strokeSlider.addChangeListener(sliderListener);
+
+		theBox2.add(transLabel);
+		theBox2.add(transSlider);
+		theBox2.add(strokeLabel);
+		theBox2.add(strokeSlider);
+
+		buttonPanel.add(theBox);
+		buttonPanel2.add(theBox2);
+
+		this.add(buttonPanel, BorderLayout.NORTH);
+		this.add(new DrawingBoard(), BorderLayout.CENTER);
+		this.add(buttonPanel2, BorderLayout.SOUTH);
+
+		// Make the frame visible
+		this.setVisible(true);
+	}
+
+	// /the first variable is the source for Icon for different buttons
+	// and second one is choiceOfDrawing denoting the different choice 1-use brush;
+	// 2-draw line; 3-draw ellipse 4-draw rectangle
+	// MC the second parameter is final cuz any variable that is used inside an
+	// MC inner class but not declared in an inner class must be final
+	public JButton createShapeButtons(String iconFile, final int actionNum) {
+		JButton shapeBut = new JButton();
+		shapeBut.setIcon(new ImageIcon(iconFile));
+
+		shapeBut.addActionListener(new ActionListener() {
+
+			public void actionPerformed(ActionEvent e) {
+				choiceOfDrawing = actionNum;
+
+			}
+		});
+
+		return shapeBut;
+	}
+
+	public JButton makeMeColorButton(String iconFile, final int actionNum, final boolean stroke) {
+		// MC the second parameter is final cuz any variable that is used inside an
+		// MC inner class but not declared in an inner class must be final
+		JButton colorBut = new JButton();
+		colorBut.setIcon(new ImageIcon(iconFile));
+
+		if (stroke) {
+
+			colorBut.addActionListener(new ActionListener() {
+
+				public void actionPerformed(ActionEvent e) {
+					// JColorChooser is a popup
+					// reference
+					// http://www.java2s.com/Tutorial/Java/0240__Swing/CreatingaJColorChooserDialog.htm
+					// https://www.youtube.com/watch?v=052U-bWEXrk&list=PLFE2CE09D83EE3E28&index=85
+					strokeColor = JColorChooser.showDialog(null, "Stroke Color", Color.BLACK);
+				}
+			});
+		} else {
+			colorBut.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					fillColor = JColorChooser.showDialog(null, "Fill Color", Color.BLACK);
+				}
+			});
+		}
+		return colorBut;
+	}
+
+	private class DrawingBoard extends JComponent {
+
+		// ArrayLists that contain each shape drawn along with
+		// that shapes stroke and fill
+
+		ArrayList<Shape> shapes = new ArrayList<Shape>();
+		ArrayList<Color> shapeFill = new ArrayList<Color>();
+		ArrayList<Color> shapeStroke = new ArrayList<Color>();
+		ArrayList<Float> transparencyPercentage = new ArrayList<Float>();
+		// the ArrayList is here to store the PrExisting graph so that every time
+		// repaint() is called ,
+		// we can not only update the shape that is being dragged but also add the
+		// pre-existing shape back to
+		// the canvas which was all wiped out cuz of call of repaint() earlier.
+
+		Point drawStart, drawEnd;
+
+		// we need to define these two variable earlier
+		// https://docs.oracle.com/javase/7/docs/api/java/awt/Point.html
+		private class innerMouseAdapterClass extends MouseAdapter {
+
+			public void mousePressed(MouseEvent e) {
+
+				if (choiceOfDrawing != 1) {
+
+					// When the mouse is pressed get x & y position
+
+					drawStart = new Point(e.getX(), e.getY());
+					drawEnd = drawStart;
+					repaint();
+					// this repaint is for painting a dot, dragging rectangle is done by repaint()
+					// in mouseDragged
+					// https://www.youtube.com/watch?v=Z6xGkaLJuEs&t=47s
+
+				}
+			}
+
+			public void mouseReleased(MouseEvent e) {
+
+				if (choiceOfDrawing != 1) {
+
+					// Create a shape using the starting x & y
+					// and finishing x & y positions
+
+					Shape aShape = null;
+
+					if (choiceOfDrawing == 2) {
+						aShape = drawLine(drawStart.x, drawStart.y, e.getX(), e.getY());
+					} else
+
+					if (choiceOfDrawing == 3) {
+						aShape = drawEllipse(drawStart.x, drawStart.y, e.getX(), e.getY());
+					} else
+
+					if (choiceOfDrawing == 4) {
+
+						// Create a new rectangle using x & y coordinates
+
+						aShape = drawRectangle(drawStart.x, drawStart.y, e.getX(), e.getY());
+					}
+
+					// Add shapes, fills and colors to there ArrayLists
+
+					shapes.add(aShape);
+					shapeFill.add(fillColor);
+					shapeStroke.add(strokeColor);
+					transparencyPercentage.add(transparency);
+
+					drawStart = null;
+					drawEnd = null;
+
+					repaint();
+
+				}
+
+			}
+
+		}
+
+		private class innerMouseMotionAdapterClass extends MouseMotionAdapter// MC for dragged we need to use
+																				// MouseMotionAdapter here instead of
+																				// MouseAdapter
+		// we used above
+		// MC for released and pressed
+		{
+			// we don't have to implement mouseMoved(MouseEvent obj)
+			public void mouseDragged(MouseEvent e) {
+
+				// If this is a brush have shapes go on the screen quickly
+
+				if (choiceOfDrawing == 1) {
+
+					int x = e.getX();
+					int y = e.getY();
+
+					Shape aShape = null;
+
+					// Make stroke and fill equal to eliminate the fact that this is an ellipse
+
+					strokeColor = fillColor;
+
+					// we constantly draw a ellipse whose width and height are both 3 from where the
+					// mouse is, that's how we
+					// simulate brush
+					aShape = drawBrush(x, y, 3, 3);
+
+					shapes.add(aShape);
+					// IMPORTANT!!!!!we constantly update the arraylists
+					shapeFill.add(fillColor);
+					shapeStroke.add(strokeColor);
+					transparencyPercentage.add(transparency);
+					// we don't repaint here when it's brush
+					// (Important) But we repaint out side the if, two lines of codes below
+				}
+
+				// Get the final x & y position after the mouse is dragged
+
+				drawEnd = new Point(e.getX(), e.getY());
+				// this is important drawEnd needs to be constantly updated
+				repaint();
+			}
+		}
+
+		public DrawingBoard() {
+
+			// the alternative way stored in backup 2 reference below
+			// https://www.programcreek.com/java-api-examples/?api=java.awt.event.MouseAdapter
+			this.addMouseListener(new innerMouseAdapterClass());
+			this.addMouseMotionListener(new innerMouseMotionAdapterClass());
+		}
+
+		public void paint(Graphics g) {
+			// Class used to define the shapes to be drawn
+
+			graphSettings = (Graphics2D) g;
+
+			// we can add this line to cleans up the jagged lines and defines rendering
+			// rules
+			// reference: https://docs.oracle.com/javase/tutorial/2d/advanced/quality.html
+			// graphSettings.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+			// RenderingHints.VALUE_ANTIALIAS_ON);
+
+			// Defines the line width of the stroke
+			graphSettings.setStroke(new BasicStroke(strokeThicknessVal));
+
+			// Iterators created to cycle through strokes and fills and transparency
+			Iterator<Color> strokeCounter = shapeStroke.iterator();
+			Iterator<Color> fillCounter = shapeFill.iterator();
+			Iterator<Float> transCounter = transparencyPercentage.iterator();
+
+			for (Shape s : shapes) {
+
+				// Sets the shapes transparency value
+				// https://www.informit.com/articles/article.aspx?p=26349&seqNum=5
+				graphSettings.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, transCounter.next()));
+
+				// https://docs.oracle.com/javase/7/docs/api/java/awt/Graphics.html#setColor(java.awt.Color)
+				// setPaint() is also ok?
+				// Grabs the next stroke from the color arraylist
+				graphSettings.setColor(strokeCounter.next());
+				graphSettings.draw(s);
+				// Grabs the next fill from the color arraylist
+				graphSettings.setColor(fillCounter.next());
+				graphSettings.fill(s);
+
+			}
+
+			// Guide shape used for drawing
+			if (drawStart != null && drawEnd != null) {
+				// we set the background to transparent cuz when if condition above
+				// is satisfied, it means we are still dragging, then our mouse hasn't released
+				// then this repaint() is gonna be executed in MouseDragged(), take rectangle
+				// for instance,
+				// when we are dragging it, it's a dynamic shape that's constantly changing, so
+				// we want to make that shape transparent,
+				// and when the mouse is released, we assign the selected transparency in the
+				// slide bar to the new shape
+				graphSettings.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.40f));
+				// Important, we make everything transparent but it doesn't affect brush, cuz
+				// the brush
+				// constantly adding small oval to the arraylist, so the brush shape will be
+				// updated in the for shape loop above,
+				// hence we don't consider choiceOfDrawing==1 in this if block.
+
+				// Make guide shape gray for professional look(optional)
+				// graphSettings.setPaint(Color.LIGHT_GRAY);
+				Shape aShape = null;
+
+				if (choiceOfDrawing == 2) {
+					aShape = drawLine(drawStart.x, drawStart.y, drawEnd.x, drawEnd.y);
+				} else
+
+				if (choiceOfDrawing == 3) {
+					aShape = drawEllipse(drawStart.x, drawStart.y, drawEnd.x, drawEnd.y);
+				} else
+
+				if (choiceOfDrawing == 4) {
+
+					// Create a new rectangle using x & y coordinates
+
+					aShape = drawRectangle(drawStart.x, drawStart.y, drawEnd.x, drawEnd.y);
+				}
+
+				graphSettings.draw(aShape);
+			}
+		}
+
+		private Rectangle2D.Float drawRectangle(int x1, int y1, int x2, int y2) {
+			// Get the top left hand corner for the shape
+			// Math.min returns the points closest to 0
+
+			int x = Math.min(x1, x2);
+			int y = Math.min(y1, y2);
+
+			// Gets the difference between the coordinates and
+
+			int width = Math.abs(x1 - x2);
+			int height = Math.abs(y1 - y2);
+
+			return new Rectangle2D.Float(x, y, width, height);
+		}
+
+		// The other shapes will work similarly
+		// More on this in the next tutorial
+
+		private Ellipse2D.Float drawEllipse(int x1, int y1, int x2, int y2) {
+			int x = Math.min(x1, x2);
+			int y = Math.min(y1, y2);
+			int width = Math.abs(x1 - x2);
+			int height = Math.abs(y1 - y2);
+
+			return new Ellipse2D.Float(x, y, width, height);
+		}
+
+		private Line2D.Float drawLine(int x1, int y1, int x2, int y2) {
+
+			return new Line2D.Float(x1, y1, x2, y2);
+		}
+
+		private Ellipse2D.Float drawBrush(int x1, int y1, int brushStrokeWidth, int brushStrokeHeight) {
+
+			return new Ellipse2D.Float(x1, y1, brushStrokeWidth, brushStrokeHeight);
+
+		}
+
+	}
+
+	// Implements ActionListener so it can react to events on components
+
+	private class ListenForSlider implements ChangeListener {
+
+		// Called when the spinner is changed
+
+		public void stateChanged(ChangeEvent e) {
+
+			// Check if the source of the event was the button
+
+			if (e.getSource() == transSlider) {
+
+				// Change the value for the label next to the spinner
+				// Use decimal format to make sure only 2 decimals are ever displayed
+
+				// transLabel.setText("Transparent: " + dec.format(transSlider.getValue() * .01)
+				// );
+				transLabel.setText("Transparent: " + transSlider.getValue() + "%");
+				// Set the value for transparency for every shape drawn after
+
+				transparency = (float) (transSlider.getValue() * .01);
+
+			} else if (e.getSource() == strokeSlider) {
+				strokeLabel.setText("Stroke Thickness: " + strokeSlider.getValue() + "%");
+				strokeThicknessVal = 4 + strokeSlider.getValue();
+
+			}
+		}
+
+	}
+}
