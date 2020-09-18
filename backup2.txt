@@ -383,9 +383,7 @@ public class JavaCanvas extends JFrame
                         return new Rectangle2D.Float(
                                 x, y, width, height);
                 }
-                
-                // The other shapes will work similarly
-                // More on this in the next tutorial
+               
                 
                 private Ellipse2D.Float drawEllipse(
                         int x1, int y1, int x2, int y2)
