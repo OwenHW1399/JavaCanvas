@@ -17,6 +17,6 @@ This is a GUI script written with Tkinter which can let the user select and disp
 Here is a video of the presentation of this game (without image recogition algorithm) [Screen Demo of JavaCanvas](https://youtu.be/V9NpbfxRACI) <br>
 
 
-Here is a screen shot of the program:
+Here are two screen shots of the program:
 ![](Demo_Pics/demo_pic_JavaCanvas.png)
 ![](Demo_Pics/demo_pic_JavaCanvas2.png)
