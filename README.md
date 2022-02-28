@@ -19,5 +19,5 @@ Here is a video of the presentation of this game (without the implementaiton of 
 
 
 Here is a screen shot of the program:
-![](Demo_Pics/demo_pic_JavaCanvas.png))
-![](Demo_Pics/demo_pic_JavaCanvas2.png))
+![](Demo_Pics/demo_pic_JavaCanvas.png)
+![](Demo_Pics/demo_pic_JavaCanvas2.png)
